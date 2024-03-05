@@ -1,4 +1,5 @@
-/*
+
+/*AE08 T L GSM 
  * 
  * 
  * RTC Check
@@ -12,6 +13,7 @@
   Turns ON All Outputs in series
   Serial prints all the input status
   SIM800C External Antenna Test
+  
  *   
  * 
  */
@@ -28,19 +30,25 @@
 
 #define ANALOG_PIN_0 36
 
-#define INPUT1 39
-#define INPUT2 34
-#define INPUT3 35
-#define INPUT4 14
-#define INPUT5 13
+#define INPUT1 34
+#define INPUT2 35
+#define INPUT3 14
+#define INPUT4 13
+
+
 
 #define OUTPUT1 12
 #define OUTPUT2 2
 #define OUTPUT3 27
 #define OUTPUT4 4
 
-#define RS485_RX 25
-#define RS485_TX 26
+#define SCK_PIN 18  // Clock SD
+#define MISO_PIN 19 // Master In Slave Out SD
+#define MOSI_PIN 23 // Master Out Slave In SD
+#define CS_PIN 15    // Chip Select SD
+
+#define RS485_RXD 25
+#define RS485_TXD 26
 #define RS485_FC 22
 
 #define GSM_RX 33
@@ -95,47 +103,48 @@ unsigned long int timer1 = 0;
 void setup() {
  
   Serial.begin(115200);
-
+  
+  pinMode(RS485_FC, OUTPUT);
+  digitalWrite(RS485_FC, HIGH);   // RS-485 
+  
   Serial.println("Hello");
-  Serial1.begin(9600, SERIAL_8N1, RS485_RX, RS485_TX); 
+  Serial1.begin(9600, SERIAL_8N1, RS485_RXD, RS485_TXD); 
   Serial2.begin(115200, SERIAL_8N1, GSM_RX, GSM_TX); 
 
   pinMode(GSM_RESET, OUTPUT);
-  digitalWrite(GSM_RESET, HIGH);   // RS-485 
+  digitalWrite(GSM_RESET, HIGH);    
 
-  pinMode(RS485_FC, OUTPUT);
-  digitalWrite(RS485_FC, HIGH);   // RS-485 
+ 
   
   pinMode(OUTPUT1, OUTPUT);
   pinMode(OUTPUT2, OUTPUT);
   pinMode(OUTPUT3, OUTPUT);
   pinMode(OUTPUT4, OUTPUT);
-
-  pinMode(5, OUTPUT);
-  pinMode(15, OUTPUT);
-  digitalWrite(5,HIGH);
-  digitalWrite(15,HIGH);
+  
+  
 
   pinMode(INPUT1, INPUT);
   pinMode(INPUT2, INPUT);
   pinMode(INPUT3, INPUT);
   pinMode(INPUT4, INPUT);
-  pinMode(INPUT5, INPUT);
-
+  
+ 
   
   Wire.begin(16,17);
-
+  Serial.println("Initializing DIsplay");
   if(!display.begin(SSD1306_SWITCHCAPVCC, 0x3C)) { // Address 0x3D for 128x64
     Serial.println(F("SSD1306 allocation failed"));
     for(;;); // Don't proceed, loop forever
   }
-  display.display();
-
-  RTC_Check();
-  delay(1000);
-  SD_CHECK();
-  delay(1000);
-  
+ display.display();
+ RTC_Check();
+ delay(1000);
+ SPI.begin(SCK_PIN, MISO_PIN, MOSI_PIN);
+ SD_CHECK();
+ delay(1000);
+ 
+ ETHERNET_CHECK();
+ 
   Serial.println("Testing Modem");
   
 
@@ -156,23 +165,29 @@ void setup() {
     Serial.write(inByte);
     }
   }
-  timer1 = millis();
-  Serial2.println("AT+CFUN?");
+   timer1 = millis();
+  Serial2.println("AT+GSN");
   while(millis()<timer1+10000){
     while (Serial2.available()) {
     int inByte = Serial2.read();
     Serial.write(inByte);
     }
   }
-
-   Serial.println("Testing Modem Done");
-
-   
-  ETHERNET_CHECK();
-
+  timer1 = millis();
+  Serial2.println("ATD+94776836382;?");
+  while(millis()<timer1+10000){
+    while (Serial2.available()) {
+    int inByte = Serial2.read();
+    Serial.write(inByte);
+    }
+  }
   
-  adcAttachPin(36);
 
+  Serial.println("Testing Modem Done");
+  Serial.println("AT TIMEOUT");
+
+ 
+  adcAttachPin(36);
 
   digitalWrite(RS485_FC, HIGH);   // RS-485 
 
@@ -187,7 +202,22 @@ void setup() {
 
 
 void loop() {
+
+  digitalWrite(RS485_FC, HIGH);                    // Make FLOW CONTROL pin HIGH
+  delay(500);
+  Serial1.println(F("RS485 01 SUCCESS"));    // Send RS485 SUCCESS serially
+  delay(500);                                // Wait for transmission of data
+  digitalWrite(RS485_FC, LOW) ;                    // Receiving mode ON
+
+                                             // Serial1.flush() ;
+  delay(1000);     
   
+  while (Serial1.available()) {  // Check if data is available
+    char c = Serial1.read();     // Read data from RS485
+    Serial.write(c);             // Print data on serial monitor
+  }
+  
+ 
   // read from port 0, send to port 1:
   while (Serial.available()) {
     int inByte = Serial.read();
@@ -198,10 +228,8 @@ void loop() {
     int inByte = Serial2.read();
     Serial.write(inByte);
   }
-
  
- 
-  Serial.print(digitalRead(INPUT1));Serial.print(digitalRead(INPUT2));Serial.print(digitalRead(INPUT3));Serial.print(digitalRead(INPUT4));Serial.print(digitalRead(INPUT5));
+  Serial.print(digitalRead(INPUT1));Serial.print(digitalRead(INPUT2));Serial.print(digitalRead(INPUT3));Serial.print(digitalRead(INPUT4));
   Serial.println(""); 
 
   Serial.println(""); 
@@ -229,10 +257,7 @@ void loop() {
   digitalWrite(OUTPUT3, LOW);
   digitalWrite(OUTPUT4, HIGH);
   delay(500);
-  digitalWrite(OUTPUT1, LOW);
-  digitalWrite(OUTPUT2, LOW);
-  digitalWrite(OUTPUT3, LOW);
-  digitalWrite(OUTPUT4, LOW);
+  
   
   Serial1.println("Hello RS-485");
    
@@ -272,11 +297,10 @@ void RTC_Check(){
  if (rtc.lostPower()) {
   
     Serial.println("RTC lost power, lets set the time!");
-    rtc.adjust(DateTime(F(__DATE__), F(__TIME__)));
     
   }
 
-   
+  rtc.adjust(DateTime(F(__DATE__), F(__TIME__))); 
   int a=1;
   while(a<6)
   {
