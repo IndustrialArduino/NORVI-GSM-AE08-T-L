@@ -1,7 +1,7 @@
 /*AE08 T L GSM 
  * RTC Check
- * micro SD Card Check CS : 15
- * Ethernet Check      CS : 5
+ * micro SD Card Check 
+ * Ethernet Check      
  * RS485
  * SIM800C
  * All Output Turn ON Series
