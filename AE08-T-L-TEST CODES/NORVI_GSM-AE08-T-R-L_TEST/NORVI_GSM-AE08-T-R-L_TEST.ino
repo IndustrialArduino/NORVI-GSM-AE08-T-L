@@ -23,10 +23,10 @@
 
 #define ANALOG_PIN_0 36
 
-#define INPUT1 34
-#define INPUT2 35
-#define INPUT3 14
-#define INPUT4 13
+#define INPUT1 13
+#define INPUT2 34
+#define INPUT3 35
+#define INPUT4 14
 
 #define OUTPUT1 12
 #define OUTPUT2 2
